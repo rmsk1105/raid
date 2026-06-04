@@ -624,6 +624,7 @@ async function deleteRaid(idx) {
   renderRaidMgmt();
   renderRaidButtons();
   if(selectedRaid===raidName){selectedRaid=null;document.getElementById('selRaidName').textContent='';}
+  if(currentTab==='homework') loadHwData();
   toast('삭제 완료');
 }
 
@@ -638,6 +639,7 @@ async function addRaid() {
   await saveRaidConfig();
   renderRaidMgmt();
   renderRaidButtons();
+  if(currentTab==='homework') loadHwData();
   toast(name+' 추가 완료');
 }
 
