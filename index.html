@@ -703,7 +703,7 @@ function renderCharGroups() {
   let html = '';
 
   Object.values(grouped).forEach(group => {
-    // 아이템레벨 내림차순 정렬
+    // 캐릭터는 템렙 내림차순
     group.chars.sort((a, b) => (b.item_level || 0) - (a.item_level || 0));
     const topName = group.chars[0]?.name || '불러온 캐릭터';
     const ids = JSON.stringify(group.chars.map(c=>c.id));
@@ -757,7 +757,7 @@ function toggleForm(type) {
 
 async function loadChars() {
   if(!sb) return;
-  const {data,error} = await sb.from('characters').select('*').order('item_level',{ascending:false});
+  const {data,error} = await sb.from('characters').select('*').order('created_at',{ascending:true});
   if(error){toast('캐릭터 로딩 실패: '+error.message,'err');return;}
   chars = data||[];
   fillDropdowns();
