@@ -288,8 +288,9 @@ tr:hover td{background:rgba(255,255,255,.015);}
 
   <!-- ══ 탭 ══ -->
   <div class="tabs">
-    <button class="tab-btn active" id="tbn-input" onclick="switchTab('input')">📝 기록 입력</button>
-    <button class="tab-btn"        id="tbn-view"  onclick="switchTab('view')">📅 기록 조회</button>
+    <button class="tab-btn active" id="tbn-input"    onclick="switchTab('input')">📝 기록 입력</button>
+    <button class="tab-btn"        id="tbn-view"     onclick="switchTab('view')">📅 기록 조회</button>
+    <button class="tab-btn"        id="tbn-homework" onclick="switchTab('homework')">📋 숙제 현황</button>
   </div>
 
   <!-- ══════════════════════════ Tab 1: 기록 입력 ══ -->
@@ -360,6 +361,18 @@ tr:hover td{background:rgba(255,255,255,.015);}
       ⚔ 기록 저장 <span id="saveCountTxt"></span>
     </button>
 
+  </div>
+
+  <!-- ══════════════════════════ Tab 3: 숙제 현황 ══ -->
+  <div class="tab-pane" id="pane-homework">
+    <div class="panel" style="margin-bottom:14px;">
+      <div class="panel-hd" style="margin-bottom:0;">
+        <div class="panel-title">원정대 선택</div>
+      </div>
+      <div class="raid-btns" id="hwRosterBtns" style="margin-top:12px;"></div>
+    </div>
+    <div id="hwWeekLabel" style="font-size:.75rem;color:var(--muted);margin-bottom:14px;"></div>
+    <div id="hwContent"></div>
   </div>
 
   <!-- ══════════════════════════ Tab 2: 기록 조회 ══ -->
@@ -474,11 +487,12 @@ function toast(msg,type='ok'){
 let currentTab='input';
 function switchTab(id){
   currentTab=id;
-  ['input','view'].forEach(t=>{
+  ['input','view','homework'].forEach(t=>{
     document.getElementById('pane-'+t).classList.toggle('active',t===id);
     document.getElementById('tbn-'+t).classList.toggle('active',t===id);
   });
   if(id==='view'){renderCal();loadRecords();}
+  if(id==='homework'){renderHwTab();}
 }
 
 /* ─── 레이드 설정 (Supabase app_settings에서 로드) ── */
@@ -1088,6 +1102,135 @@ async function delGroup(idx) {
   if(error){toast('삭제 실패: '+error.message,'err');return;}
   toast('기록 삭제 완료');
   await loadCalData();loadRecords();
+}
+
+/* ─── 숙제 현황 ── */
+let hwGroupId = null;
+
+// 로아 주간 리셋: 수요일 기준 (수~다음주 화)
+function getWeekRange() {
+  const now = new Date();
+  const day = now.getDay(); // 0=일 1=월 2=화 3=수 4=목 5=금 6=토
+  const diffToWed = (day - 3 + 7) % 7;
+  const wed = new Date(now);
+  wed.setDate(now.getDate() - diffToWed);
+  const tue = new Date(wed);
+  tue.setDate(wed.getDate() + 6);
+  const fmt = d => d.toISOString().split('T')[0];
+  return { start: fmt(wed), end: fmt(tue) };
+}
+
+function renderHwTab() {
+  const groups = {};
+  chars.forEach(c => {
+    if(c.roster_group){
+      if(!groups[c.roster_group]) groups[c.roster_group] = [];
+      groups[c.roster_group].push(c);
+    }
+  });
+  const groupList = Object.entries(groups).map(([gid, gchars]) => {
+    gchars.sort((a,b) => (b.item_level||0) - (a.item_level||0));
+    return { gid, gchars, topName: gchars[0]?.name || '원정대' };
+  });
+
+  if(!groupList.length) {
+    document.getElementById('hwRosterBtns').innerHTML = '<span style="color:var(--muted);font-size:.82rem;">등록된 원정대가 없습니다</span>';
+    document.getElementById('hwContent').innerHTML = '';
+    document.getElementById('hwWeekLabel').textContent = '';
+    return;
+  }
+
+  // 현재 선택 없거나 사라진 경우 첫 번째로
+  if(!hwGroupId || !groups[hwGroupId]) hwGroupId = groupList[0].gid;
+
+  document.getElementById('hwRosterBtns').innerHTML = groupList.map(g =>
+    `<button class="raid-btn${hwGroupId===g.gid?' active':''}" onclick="selectHwGroup(this,'${g.gid}')">${esc(g.topName)}</button>`
+  ).join('');
+
+  loadHwData();
+}
+
+function selectHwGroup(btn, gid) {
+  hwGroupId = gid;
+  document.querySelectorAll('#hwRosterBtns .raid-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  loadHwData();
+}
+
+async function loadHwData() {
+  if(!sb || !hwGroupId) return;
+  const groupChars = chars.filter(c => c.roster_group === hwGroupId);
+  groupChars.sort((a,b) => (b.item_level||0) - (a.item_level||0));
+  if(!groupChars.length) return;
+
+  const { start, end } = getWeekRange();
+  const { weekLabel } = { weekLabel: `📅 이번 주 (${start.replace(/-/g,'.')} ~ ${end.replace(/-/g,'.')})` };
+  document.getElementById('hwWeekLabel').textContent = `📅 이번 주: ${start.replace(/-/g,'.')} ~ ${end.replace(/-/g,'.')} (수요일 리셋 기준)`;
+
+  const charNames = groupChars.map(c => c.name);
+  const { data, error } = await sb.from('raid_records').select('*')
+    .in('character_name', charNames)
+    .gte('date', start).lte('date', end);
+
+  if(error){ toast('숙제 로딩 실패: '+error.message,'err'); return; }
+  renderHwData(groupChars, data||[]);
+}
+
+function renderHwData(groupChars, records) {
+  const charRecords = {};
+  groupChars.forEach(c => charRecords[c.name] = []);
+  records.forEach(r => { if(charRecords[r.character_name] !== undefined) charRecords[r.character_name].push(r); });
+
+  // 아브렐슈드 = 이벤트 레이드로 분리, 나머지 최대 3개
+  const EVENT_RAID = '아브렐슈드';
+  const mainRaids  = raidConfig.filter(r => r.name !== EVENT_RAID).slice(0, 3);
+  const eventRaid  = raidConfig.find(r => r.name === EVENT_RAID);
+
+  const cardsHtml = groupChars.map(c => {
+    const done = charRecords[c.name] || [];
+    // 레이드명 기준으로만 완료 체크 (난이도 무관)
+    const doneRaids = new Set(done.map(r => r.raid_name));
+
+    const raidRows = mainRaids.length
+      ? mainRaids.map(raid => {
+          const isDone = doneRaids.has(raid.name);
+          return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);">
+            <span style="font-size:.85rem;flex-shrink:0;color:${isDone?'var(--success)':'var(--border)'};">${isDone?'✓':'○'}</span>
+            <span style="font-size:.82rem;color:${isDone?'var(--text)':'var(--muted)'};">${esc(raid.name)}</span>
+          </div>`;
+        }).join('')
+      : `<div style="color:var(--muted);font-size:.8rem;padding:4px 0;">레이드 없음</div>`;
+
+    const eventRow = ''; // 아브렐슈드는 원정대 공용으로 아래 별도 표시
+
+    const doneCount = mainRaids.filter(r => doneRaids.has(r.name)).length;
+    const allDone   = mainRaids.length > 0 && doneCount >= mainRaids.length;
+
+    return `<div style="background:var(--card);border:1px solid ${allDone?'var(--success)':'var(--border)'};border-radius:10px;padding:14px 16px;flex:1;min-width:160px;max-width:230px;">
+      <div style="margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border);">
+        <div style="font-weight:700;font-size:.92rem;color:${allDone?'var(--success)':'var(--text)'};">${esc(c.name)}</div>
+        <div style="font-size:.7rem;color:var(--muted);margin-top:2px;">${c.class?esc(c.class)+' · ':''}${c.item_level||'—'}</div>
+      </div>
+      ${raidRows}
+      ${eventRow}
+      <div style="margin-top:8px;font-size:.72rem;color:${allDone?'var(--success)':'var(--muted)'};">
+        ${allDone?'✓ 완료':`${doneCount} / ${mainRaids.length} 완료`}
+      </div>
+    </div>`;
+  }).join('');
+
+  // 아브렐슈드: 원정대 중 누구 한 명이라도 했으면 완료
+  const eventSection = eventRaid ? (() => {
+    const abrDone = records.some(r => r.raid_name === EVENT_RAID);
+    return `<div style="margin-top:16px;background:var(--card);border:1px solid ${abrDone?'var(--success)':'var(--border)'};border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:12px;">
+      <span style="font-size:.62rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;">이벤트 · 원정대 공용</span>
+      <span style="font-size:.9rem;color:${abrDone?'var(--success)':'var(--border)'};">${abrDone?'✓':'○'}</span>
+      <span style="font-size:.88rem;font-weight:700;color:${abrDone?'var(--success)':'var(--text)'};">${esc(EVENT_RAID)}</span>
+      <span style="margin-left:auto;font-size:.72rem;color:var(--muted);">원정대 내 1회</span>
+    </div>`;
+  })() : '';
+
+  document.getElementById('hwContent').innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:12px;">${cardsHtml}</div>${eventSection}`;
 }
 
 /* ─── 초기화 ── */
