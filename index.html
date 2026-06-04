@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>로스트아크 레이드 기록</title>
+<script>var configLoadFailed = false;</script>
+<script src="config.js" onerror="configLoadFailed = true;"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+:root {
+  --bg:       #0b0b12;
+  --surface:  #0f0f1a;
+  --card:     #171724;
+  --card2:    #1d1d2e;
+  --border:   #2a2a42;
+  --gold:     #c9aa71;
+  --gold-l:   #dfc28a;
+  --gold-d:   #8a6c3a;
+  --gold-glow:rgba(201,170,113,.22);
+  --text:     #e6e1d3;
+  --muted:    #767690;
+  --normal:   #6baed6;
+  --hard:     #e05c5c;
+  --solo:     #5cb87a;
+  --success:  #5cb87a;
+  --error:    #e05c5c;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;line-height:1.5;}
+
+/* ── 헤더 ── */
+header{background:linear-gradient(180deg,#07070e,#111119);border-bottom:1px solid var(--gold-d);padding:15px 26px;display:flex;align-items:center;gap:14px;}
+.h-logo{font-size:1.5rem;}
+.h-title{font-size:1.2rem;font-weight:700;color:var(--gold);letter-spacing:.06em;text-shadow:0 0 20px var(--gold-glow);}
+.h-sub{font-size:.78rem;color:var(--muted);margin-top:2px;}
+
+/* ── 레이아웃 ── */
+.wrap{max-width:1160px;margin:0 auto;padding:24px 18px;}
+
+/* ── 배너 ── */
+.banner{background:rgba(201,170,113,.08);border:1px solid var(--gold-d);border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:.85rem;color:var(--gold-l);display:none;}
+.banner code{background:rgba(0,0,0,.3);padding:1px 5px;border-radius:3px;font-size:.78rem;}
+
+/* ── 패널 ── */
+.panel{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px 20px;margin-bottom:22px;}
+.panel-hd{display:flex;align-items:center;justify-content:space-between;}
+.panel-title{font-size:.92rem;font-weight:700;color:var(--gold);display:flex;align-items:center;gap:9px;}
+.panel-title::before{content:'';display:block;width:3px;height:15px;background:var(--gold);border-radius:2px;}
+.hd-btns{display:flex;gap:7px;}
+
+/* ── 서브 폼 ── */
+.sub-form{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:14px;margin-top:14px;}
+.fg{display:flex;flex-direction:column;gap:5px;flex:1;min-width:130px;}
+
+/* ── 탭 ── */
+.tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:22px;}
+.tab-btn{padding:10px 24px;background:none;border:none;color:var(--muted);cursor:pointer;font-size:.9rem;position:relative;transition:color .2s;}
+.tab-btn:hover:not(.active){color:var(--text);}
+.tab-btn.active{color:var(--gold);}
+.tab-btn.active::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:2px;background:var(--gold);}
+.tab-pane{display:none;}
+.tab-pane.active{display:block;}
+
+/* ── 공통 입력 ── */
+label.lbl{font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);}
+input,select,textarea{width:100%;background:#090912;border:1px solid var(--border);border-radius:6px;padding:8px 11px;color:var(--text);font-size:.87rem;outline:none;transition:border-color .2s;font-family:inherit;}
+input:focus,select:focus,textarea:focus{border-color:var(--gold-d);}
+input[type=time],input[type=date]{color-scheme:dark;}
+select option{background:#1a1a28;}
+
+/* ── 버튼 ── */
+.btn{padding:8px 18px;border:none;border-radius:6px;cursor:pointer;font-size:.86rem;font-weight:700;transition:all .18s;white-space:nowrap;font-family:inherit;}
+.btn-gold{background:linear-gradient(135deg,var(--gold-d),var(--gold));color:#080810;}
+.btn-gold:hover{background:linear-gradient(135deg,var(--gold),var(--gold-l));transform:translateY(-1px);box-shadow:0 4px 12px rgba(201,170,113,.28);}
+.btn-gold:active{transform:none;}
+.btn-ghost{background:none;border:1px solid var(--border);color:var(--muted);}
+.btn-ghost:hover{border-color:var(--gold-d);color:var(--text);}
+.btn-sm{padding:5px 13px;font-size:.78rem;}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none !important;}
+
+/* ══════════════ 기록 입력 카드 ══════════════ */
+.input-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px 20px;margin-bottom:14px;}
+.card-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.card-label{font-size:.78rem;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.07em;}
+.form-row2{display:grid;grid-template-columns:1fr 1fr;gap:13px;}
+
+/* ── 난이도 버튼 ── */
+.diff-btns{display:flex;gap:6px;}
+.diff-btn{flex:1;padding:9px 4px;background:var(--card2);border:1px solid var(--border);border-radius:6px;color:var(--muted);cursor:pointer;font-size:.84rem;font-weight:700;transition:all .15s;font-family:inherit;}
+.diff-btn:hover{border-color:var(--gold-d);color:var(--text);}
+.diff-btn.on-normal{border-color:var(--normal)!important;color:var(--normal)!important;background:rgba(107,174,214,.12)!important;}
+.diff-btn.on-hard{border-color:var(--hard)!important;color:var(--hard)!important;background:rgba(224,92,92,.12)!important;}
+.diff-btn.on-solo{border-color:var(--solo)!important;color:var(--solo)!important;background:rgba(92,184,122,.12)!important;}
+.diff-section{margin-top:14px;padding-top:14px;border-top:1px solid var(--border);}
+
+/* ── 레이드 버튼 ── */
+.raid-btns{display:flex;flex-wrap:wrap;gap:7px;}
+.raid-btn{padding:7px 15px;background:var(--card2);border:1px solid var(--border);border-radius:6px;color:var(--text);cursor:pointer;font-size:.84rem;font-family:inherit;transition:all .15s;}
+.raid-btn:hover{border-color:var(--gold-d);}
+.raid-btn.active{border-color:var(--gold);color:var(--gold);background:rgba(201,170,113,.1);}
+.raid-input-wrap{margin-top:10px;}
+
+/* ── 캐릭터 그룹 ── */
+.char-group{margin-bottom:16px;}
+.char-group:last-child{margin-bottom:0;}
+.group-label{font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;border-left:2px solid var(--border);padding-left:8px;}
+.char-btns{display:flex;flex-wrap:wrap;gap:7px;}
+
+/* ── 캐릭터 버튼 (선택 + 삭제) ── */
+.char-btn{display:flex;flex-direction:column;align-items:center;background:var(--card2);border:1px solid var(--border);border-radius:8px;transition:all .15s;min-width:88px;position:relative;overflow:hidden;}
+.char-btn:hover{border-color:var(--gold-d);}
+.char-btn.active{border-color:var(--gold);background:rgba(201,170,113,.1);}
+.cb-inner{display:flex;flex-direction:column;align-items:center;padding:9px 14px 9px;width:100%;text-align:center;cursor:pointer;}
+.cb-name{font-size:.88rem;font-weight:700;color:var(--text);}
+.char-btn.active .cb-name{color:var(--gold);}
+.cb-meta{font-size:.7rem;color:var(--muted);margin-top:3px;}
+.cb-del{position:absolute;top:3px;right:4px;color:var(--muted);font-size:.8rem;line-height:1;padding:2px 5px;border-radius:3px;opacity:0;transition:opacity .15s;cursor:pointer;background:rgba(0,0,0,.4);}
+.char-btn:hover .cb-del{opacity:1;}
+.cb-del:hover{color:var(--error);}
+
+/* ── 선택 정보 & 저장 ── */
+.sel-count{font-size:.82rem;color:var(--muted);}
+.sel-count.has{color:var(--gold);font-weight:700;}
+.save-btn{width:100%;padding:14px;font-size:1rem;margin-top:4px;border-radius:8px;}
+
+/* ══════════════ 달력 ══════════════ */
+.cal-card{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:18px;}
+.cal-nav{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);}
+.cal-nav-c{display:flex;align-items:center;gap:10px;}
+.cal-title{font-size:1rem;font-weight:700;color:var(--gold);min-width:110px;text-align:center;}
+.cal-nav-btn{background:none;border:1px solid var(--border);border-radius:5px;color:var(--muted);cursor:pointer;padding:4px 10px;font-size:.82rem;transition:all .15s;}
+.cal-nav-btn:hover{border-color:var(--gold-d);color:var(--text);}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--border);}
+.cal-head{background:#0c0c16;text-align:center;padding:7px 2px;font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);}
+.cal-head:first-child{color:#e06060;}
+.cal-head:last-child{color:#6baed6;}
+.cal-cell{background:var(--surface);min-height:76px;padding:6px 7px;cursor:pointer;transition:background .14s;position:relative;user-select:none;}
+.cal-cell:hover{background:var(--card2);}
+.cal-empty{background:#090910;min-height:76px;}
+.cal-cell.today .cal-day-num{background:var(--gold-d);color:#080810;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;}
+.cal-cell.selected{background:rgba(201,170,113,.09);outline:1px inset var(--gold-d);}
+.cal-day-num{font-size:.8rem;font-weight:600;color:var(--text);display:inline-flex;width:22px;height:22px;align-items:center;justify-content:center;}
+.cal-cnt{position:absolute;top:5px;right:5px;background:rgba(201,170,113,.18);color:var(--gold);border-radius:9px;font-size:.62rem;padding:1px 5px;font-weight:700;}
+.cal-dots{display:flex;flex-wrap:wrap;gap:3px;margin-top:4px;}
+.cdot{width:7px;height:7px;border-radius:50%;display:inline-block;}
+.cdot-normal{background:var(--normal);}
+.cdot-hard{background:var(--hard);}
+.cdot-solo{background:var(--solo);}
+
+/* ══════════════ 기록 테이블 ══════════════ */
+.records-card{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+.view-toolbar{display:flex;gap:9px;flex-wrap:wrap;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);}
+.view-toolbar select,.view-toolbar input{flex:0 1 170px;}
+.date-chip{display:inline-flex;align-items:center;gap:6px;background:rgba(201,170,113,.12);border:1px solid var(--gold-d);border-radius:14px;padding:3px 10px;font-size:.78rem;color:var(--gold);cursor:pointer;white-space:nowrap;}
+.date-chip:hover{background:rgba(201,170,113,.2);}
+.rec-count{margin-left:auto;color:var(--muted);font-size:.8rem;white-space:nowrap;}
+.tbl-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;}
+thead{background:#0d0d18;}
+th{padding:10px 13px;text-align:left;font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);white-space:nowrap;}
+td{padding:11px 13px;border-top:1px solid var(--border);font-size:.86rem;vertical-align:middle;}
+tr:hover td{background:rgba(255,255,255,.015);}
+.cell-time{font-variant-numeric:tabular-nums;color:var(--muted);font-size:.8rem;white-space:nowrap;}
+.cell-chars{display:flex;flex-wrap:wrap;gap:4px;align-items:center;row-gap:4px;}
+.char-tag{font-size:.82rem;font-weight:700;white-space:nowrap;}
+.char-tag-cls{color:var(--muted);font-weight:400;font-size:.75rem;}
+.char-sep{color:var(--border);margin:0 1px;}
+.badge{display:inline-block;padding:2px 9px;border-radius:11px;font-size:.7rem;font-weight:700;white-space:nowrap;}
+.badge-normal{background:rgba(107,174,214,.13);color:#8ac4ef;border:1px solid rgba(107,174,214,.28);}
+.badge-hard{background:rgba(224,92,92,.13);color:#f08080;border:1px solid rgba(224,92,92,.28);}
+.badge-solo{background:rgba(92,184,122,.13);color:#80e0a0;border:1px solid rgba(92,184,122,.28);}
+.row-del{background:none;border:1px solid transparent;color:var(--muted);cursor:pointer;padding:3px 8px;border-radius:4px;font-size:.75rem;transition:all .15s;}
+.row-del:hover{color:var(--error);border-color:var(--error);}
+
+/* ── 플레이스홀더 ── */
+.placeholder{text-align:center;padding:44px 20px;color:var(--muted);}
+.ph-ico{font-size:2.2rem;margin-bottom:10px;}
+
+/* ── 임포트 모달 ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:999;padding:16px;}
+.modal{background:var(--card);border:1px solid var(--border);border-radius:12px;width:100%;max-width:580px;max-height:80vh;overflow:hidden;display:flex;flex-direction:column;}
+.modal-hd{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);}
+.modal-hd-title{font-weight:700;color:var(--gold);}
+.modal-close{background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.2rem;line-height:1;transition:color .15s;}
+.modal-close:hover{color:var(--text);}
+.modal-body{overflow-y:auto;flex:1;padding:14px 18px;}
+.modal-ft{padding:12px 18px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:9px;}
+.ic-card{display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;margin-bottom:7px;cursor:pointer;transition:all .15s;}
+.ic-card:hover:not(.ic-exists){border-color:var(--gold-d);}
+.ic-card.ic-selected{border-color:var(--gold);background:rgba(201,170,113,.07);}
+.ic-card.ic-exists{opacity:.45;cursor:default;}
+.ic-check{width:18px;height:18px;border:1.5px solid var(--border);border-radius:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:.75rem;transition:all .15s;}
+.ic-card.ic-selected .ic-check{background:var(--gold);border-color:var(--gold);color:#080810;}
+.ic-info{flex:1;}
+.ic-name{font-weight:700;font-size:.9rem;}
+.ic-meta{color:var(--muted);font-size:.75rem;margin-top:2px;}
+.ic-ilvl{font-weight:700;color:var(--gold);font-size:.85rem;text-align:right;}
+.ic-exists-tag{font-size:.7rem;color:var(--muted);background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:2px 7px;flex-shrink:0;}
+
+/* ── 토스트 ── */
+#toasts{position:fixed;top:18px;right:18px;display:flex;flex-direction:column;gap:7px;z-index:9999;pointer-events:none;}
+.toast{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 15px;font-size:.83rem;min-width:200px;pointer-events:all;animation:tIn .22s ease;}
+.toast.ok{border-left:3px solid var(--success);}
+.toast.err{border-left:3px solid var(--error);}
+@keyframes tIn{from{transform:translateX(110%);opacity:0;}to{transform:none;opacity:1;}}
+
+/* ── 커스텀 클래스 콤보박스 ── */
+.combo-wrap{position:relative;}
+.combo-list{position:absolute;top:calc(100% + 3px);left:0;right:0;background:var(--card2);border:1px solid var(--border);border-radius:6px;z-index:300;max-height:230px;overflow-y:auto;display:none;box-shadow:0 8px 24px rgba(0,0,0,.6);}
+.combo-item{padding:7px 13px;cursor:pointer;font-size:.85rem;color:var(--text);transition:background .1s;}
+.combo-item:hover{background:rgba(201,170,113,.1);color:var(--gold);}
+.combo-grp{padding:6px 13px 3px;font-size:.63rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;border-top:1px solid var(--border);}
+.combo-grp:first-child{border-top:none;}
+.combo-empty{padding:10px 13px;font-size:.82rem;color:var(--muted);}
+
+/* ── 반응형 ── */
+@media(max-width:640px){
+  .wrap{padding:14px 10px;}
+  .sub-form{flex-direction:column;}
+  .form-row2{grid-template-columns:1fr;}
+  .view-toolbar{flex-direction:column;align-items:stretch;}
+  .rec-count{margin-left:0;}
+  .cal-cell{min-height:54px;}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="h-logo">⚔</div>
+  <div>
+    <div class="h-title">로스트아크 레이드 기록</div>
+    <div class="h-sub">파티원과 함께 레이드 기록을 공유하세요</div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="banner" id="configBanner">
+    ⚠ <strong>config.js</strong>에 Supabase 연결 정보(<code>SUPABASE_URL</code>, <code>SUPABASE_ANON_KEY</code>)를 입력하고 새로고침하세요.
+  </div>
+
+  <!-- ══ 캐릭터 관리 패널 ══ -->
+  <div class="panel">
+    <div class="panel-hd">
+      <div class="panel-title">캐릭터 관리</div>
+      <div class="hd-btns">
+        <button class="btn btn-ghost btn-sm" onclick="toggleForm('api')">🔍 로스터 불러오기</button>
+        <button class="btn btn-gold  btn-sm" onclick="toggleForm('manual')">＋ 직접 추가</button>
+      </div>
+    </div>
+
+    <div id="apiForm" style="display:none;">
+      <div class="sub-form">
+        <div class="fg" style="flex:2;min-width:180px;">
+          <label class="lbl">캐릭터명 입력 → 같은 계정 로스터 전체 조회</label>
+          <input id="apiName" type="text" placeholder="캐릭터명" onkeydown="if(event.key==='Enter')lookupAPI()">
+        </div>
+        <button class="btn btn-gold btn-sm" id="apiBtn" style="align-self:flex-end;" onclick="lookupAPI()">🔍 검색</button>
+        <button class="btn btn-ghost btn-sm" style="align-self:flex-end;" onclick="toggleForm('api')">취소</button>
+      </div>
+    </div>
+
+    <div id="manualForm" style="display:none;">
+      <div class="sub-form">
+        <div class="fg">
+          <label class="lbl">캐릭터명 *</label>
+          <input id="cName" type="text" placeholder="캐릭터명" maxlength="30" onkeydown="if(event.key==='Enter')addManual()">
+        </div>
+        <div class="fg">
+          <label class="lbl">아이템레벨</label>
+          <input id="cIlvl" type="number" placeholder="1640" min="0" max="2000" step="0.1">
+        </div>
+        <div class="fg">
+          <label class="lbl">클래스</label>
+          <div class="combo-wrap">
+            <input id="cClass" type="text" placeholder="클래스 입력 또는 선택" autocomplete="off"
+              oninput="filterCombo()" onfocus="openCombo()" onblur="closeComboDelay()" onkeydown="comboKey(event)">
+            <div class="combo-list" id="comboList"></div>
+          </div>
+        </div>
+        <button class="btn btn-gold  btn-sm" style="align-self:flex-end;" onclick="addManual()">추가</button>
+        <button class="btn btn-ghost btn-sm" style="align-self:flex-end;" onclick="toggleForm('manual')">취소</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ 탭 ══ -->
+  <div class="tabs">
+    <button class="tab-btn active" id="tbn-input" onclick="switchTab('input')">📝 기록 입력</button>
+    <button class="tab-btn"        id="tbn-view"  onclick="switchTab('view')">📅 기록 조회</button>
+  </div>
+
+  <!-- ══════════════════════════ Tab 1: 기록 입력 ══ -->
+  <div class="tab-pane active" id="pane-input">
+
+    <!-- 카드1: 날짜·시간 -->
+    <div class="input-card">
+      <div class="form-row2">
+        <div class="fg">
+          <label class="lbl">날짜 *</label>
+          <input id="rDate" type="date">
+        </div>
+        <div class="fg">
+          <label class="lbl">시작 시간</label>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <select id="rTimeH" style="flex:1;">
+              <option value="">시</option>
+            </select>
+            <span style="color:var(--muted);font-size:.9rem;flex-shrink:0;">:</span>
+            <select id="rTimeM" style="flex:1;">
+              <option value="">분</option>
+              <option value="00">00</option>
+              <option value="10">10</option>
+              <option value="20">20</option>
+              <option value="30">30</option>
+              <option value="40">40</option>
+              <option value="50">50</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 카드2: 레이드명 + 난이도 -->
+    <div class="input-card">
+      <div class="card-hd">
+        <div class="card-label">레이드명 *</div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span id="selRaidName" style="font-size:.82rem;color:var(--gold);"></span>
+          <button class="btn btn-ghost btn-sm" onclick="openRaidMgmt()" style="font-size:.72rem;padding:3px 9px;">⚙ 레이드 관리</button>
+        </div>
+      </div>
+      <div class="raid-btns" id="raidBtns">
+        <span style="color:var(--muted);font-size:.82rem;">⚙ 레이드 관리에서 레이드를 추가해주세요</span>
+      </div>
+      <!-- 난이도 -->
+      <div class="diff-section">
+        <label class="lbl">난이도 *</label>
+        <div class="diff-btns" id="diffBtns" style="margin-top:7px;">
+          <span style="color:var(--muted);font-size:.82rem;">레이드 선택 후 표시됩니다</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 카드3: 캐릭터 선택 -->
+    <div class="input-card">
+      <div class="card-hd">
+        <div class="card-label">캐릭터 *</div>
+        <span id="selCount" class="sel-count">0명 선택</span>
+      </div>
+      <div id="charGroups">
+        <div class="no-char" style="color:var(--muted);font-size:.83rem;padding:5px 0;">캐릭터 로딩 중…</div>
+      </div>
+    </div>
+
+    <!-- 저장 -->
+    <button class="btn btn-gold save-btn" onclick="saveRecord()">
+      ⚔ 기록 저장 <span id="saveCountTxt"></span>
+    </button>
+
+  </div>
+
+  <!-- ══════════════════════════ Tab 2: 기록 조회 ══ -->
+  <div class="tab-pane" id="pane-view">
+
+    <div class="cal-card">
+      <div class="cal-nav">
+        <div class="cal-nav-c">
+          <button class="cal-nav-btn" onclick="moveMon(-1)">◀</button>
+          <span class="cal-title" id="calTitle">—</span>
+          <button class="cal-nav-btn" onclick="moveMon(1)">▶</button>
+        </div>
+        <button class="cal-nav-btn" style="font-size:.75rem;padding:3px 9px;" onclick="gotoToday()">오늘</button>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+    </div>
+
+    <div class="records-card">
+      <div class="view-toolbar">
+        <div id="dateChipWrap"></div>
+        <select id="fChar" onchange="loadRecords()"><option value="">전체 캐릭터</option></select>
+        <input  id="fRaid" type="text" placeholder="레이드명 검색…" oninput="debouncedLoad()">
+        <select id="fDiff" onchange="loadRecords()">
+          <option value="">전체 난이도</option>
+          <option value="노말">노말</option>
+          <option value="하드">하드</option>
+          <option value="솔로">솔로</option>
+        </select>
+        <span class="rec-count" id="recCount">—</span>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr><th>날짜</th><th>시간</th><th>캐릭터</th><th>레이드명</th><th>난이도</th><th></th></tr>
+          </thead>
+          <tbody id="recBody">
+            <tr><td colspan="6"><div class="placeholder"><div class="ph-ico">⚔</div>로딩 중…</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- 레이드 관리 모달 -->
+<div class="overlay" id="raidOverlay" style="display:none;" onclick="if(event.target===this)closeRaidMgmt()">
+  <div class="modal" style="max-width:500px;">
+    <div class="modal-hd">
+      <span class="modal-hd-title">⚙ 레이드 관리</span>
+      <button class="modal-close" onclick="closeRaidMgmt()">✕</button>
+    </div>
+    <div class="modal-body" id="raidMgmtBody"></div>
+    <div class="modal-ft">
+      <button class="btn btn-ghost" onclick="closeRaidMgmt()">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 임포트 모달 -->
+<div class="overlay" id="importOverlay" style="display:none;" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-hd">
+      <span class="modal-hd-title" id="modalTitle">캐릭터 검색 결과</span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-ft">
+      <button class="btn btn-ghost" onclick="closeModal()">닫기</button>
+      <button class="btn btn-gold" id="importBtn" onclick="importSelected()">선택 추가</button>
+    </div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+'use strict';
+
+/* ─── Supabase ── */
+let sb = null;
+function initSB() {
+  const bad = configLoadFailed
+    || typeof SUPABASE_URL === 'undefined' || !SUPABASE_URL || SUPABASE_URL.startsWith('YOUR_')
+    || typeof SUPABASE_ANON_KEY === 'undefined' || !SUPABASE_ANON_KEY || SUPABASE_ANON_KEY.startsWith('YOUR_');
+  if (bad) { document.getElementById('configBanner').style.display = 'block'; return false; }
+  sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  return true;
+}
+
+/* ─── 유틸 ── */
+function esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function todayStr(){return new Date().toISOString().split('T')[0];}
+function fmtTime(t){return t?String(t).slice(0,5):'—';}
+function getTimeVal() {
+  const h = document.getElementById('rTimeH').value;
+  const m = document.getElementById('rTimeM').value;
+  return (h !== '' && m !== '') ? `${h}:${m}` : '';
+}
+function diffCls(d){return{'노말':'normal','하드':'hard','솔로':'solo'}[d]||'normal';}
+function parseIlvl(s){return parseFloat(String(s||'0').replace(/,/g,''))||0;}
+function toast(msg,type='ok'){
+  const c=document.getElementById('toasts');
+  const el=document.createElement('div');
+  el.className='toast '+type;
+  el.textContent=(type==='ok'?'✔ ':'✖ ')+msg;
+  c.appendChild(el);
+  setTimeout(()=>el.remove(),3200);
+}
+
+/* ─── 탭 ── */
+let currentTab='input';
+function switchTab(id){
+  currentTab=id;
+  ['input','view'].forEach(t=>{
+    document.getElementById('pane-'+t).classList.toggle('active',t===id);
+    document.getElementById('tbn-'+t).classList.toggle('active',t===id);
+  });
+  if(id==='view'){renderCal();loadRecords();}
+}
+
+/* ─── 레이드 설정 (Supabase app_settings에서 로드) ── */
+let raidConfig = []; // [{name:'세르카', diffs:['노말','하드']}, ...]
+let newRaidDiffs = []; // 새 레이드 추가 시 임시 난이도 목록
+let newRaidName = '';  // 새 레이드 이름 임시 보존 (렌더링 시 유지)
+
+async function loadRaidConfig() {
+  if(!sb) return;
+  try {
+    const {data} = await sb.from('app_settings').select('value').eq('key','raids');
+    raidConfig = data?.[0]?.value || [];
+  } catch(e) {
+    raidConfig = [];
+  }
+  renderRaidButtons();
+}
+
+async function saveRaidConfig() {
+  if(!sb) return;
+  await sb.from('app_settings').upsert({key:'raids', value:raidConfig}, {onConflict:'key'});
+}
+
+function renderRaidButtons() {
+  const container = document.getElementById('raidBtns');
+  if(!raidConfig.length) {
+    container.innerHTML = '<span style="color:var(--muted);font-size:.82rem;">⚙ 레이드 관리에서 레이드를 추가해주세요</span>';
+    return;
+  }
+  // onclick에 따옴표 충돌 방지: 인덱스 숫자만 넘김
+  container.innerHTML = raidConfig.map((r, i) =>
+    `<button class="raid-btn" onclick="selRaid(this,${i})">${esc(r.name)}</button>`
+  ).join('');
+}
+
+/* ─── 레이드 관리 모달 ── */
+function openRaidMgmt() {
+  newRaidDiffs = [];
+  newRaidName = '';
+  renderRaidMgmt();
+  document.getElementById('raidOverlay').style.display = 'flex';
+}
+function closeRaidMgmt() {
+  document.getElementById('raidOverlay').style.display = 'none';
+}
+
+function diffTagStyle(active){
+  return active
+    ? 'display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:10px;font-size:.72rem;font-weight:700;background:rgba(201,170,113,.12);border:1px solid var(--gold-d);color:var(--gold);'
+    : 'display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:10px;font-size:.72rem;font-weight:700;background:transparent;border:1px solid var(--border);color:var(--muted);';
+}
+
+function renderRaidMgmt() {
+  const listHtml = raidConfig.length
+    ? raidConfig.map((r,i) => `
+      <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);">
+        <span style="flex:0 0 auto;font-weight:700;font-size:.88rem;padding-top:3px;min-width:80px;">${esc(r.name)}</span>
+        <div style="flex:1;display:flex;flex-wrap:wrap;gap:4px;align-items:center;">
+          ${r.diffs.map((d,di) => `<span style="${diffTagStyle(true)}">${esc(d)}<span onclick="removeRaidDiff(${i},${di})" style="cursor:pointer;opacity:.6;margin-left:1px;">×</span></span>`).join('')}
+          <input id="addDiff_${i}" type="text" placeholder="난이도 추가" style="width:90px;padding:3px 7px;font-size:.75rem;"
+            onkeydown="if(event.key==='Enter'){addRaidDiff(${i});event.preventDefault();}">
+          <button onclick="addRaidDiff(${i})" class="btn btn-ghost btn-sm" style="padding:2px 8px;font-size:.72rem;">+</button>
+        </div>
+        <button onclick="deleteRaid(${i})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.1rem;padding:0 4px;line-height:1;flex-shrink:0;" title="레이드 삭제">×</button>
+      </div>`).join('')
+    : '<div style="color:var(--muted);font-size:.84rem;padding:8px 0;">등록된 레이드가 없습니다.</div>';
+
+  document.getElementById('raidMgmtBody').innerHTML = `
+    <div style="margin-bottom:18px;">${listHtml}</div>
+    <div style="border-top:2px solid var(--border);padding-top:16px;">
+      <div style="font-size:.75rem;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;">레이드 추가</div>
+      <div style="display:flex;gap:8px;margin-bottom:10px;">
+        <input id="newRaidName" type="text" placeholder="레이드명" style="flex:1;"
+          value="${esc(newRaidName)}"
+          oninput="newRaidName=this.value"
+          onkeydown="if(event.key==='Enter')document.getElementById('newDiffInput').focus()">
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-bottom:10px;">
+        <span style="font-size:.75rem;color:var(--muted);white-space:nowrap;">난이도:</span>
+        ${newRaidDiffs.map((d,i) => `<span style="${diffTagStyle(true)}">${esc(d)}<span onclick="removeNewDiff(${i})" style="cursor:pointer;opacity:.6;margin-left:1px;">×</span></span>`).join('')}
+        <input id="newDiffInput" type="text" placeholder="입력 후 Enter"
+          style="width:120px;padding:3px 7px;font-size:.75rem;"
+          onkeydown="if(event.key==='Enter'){addNewDiff();event.preventDefault();}">
+      </div>
+      <button class="btn btn-gold btn-sm" onclick="addRaid()">추가</button>
+    </div>`;
+}
+
+function addNewDiff() {
+  const input = document.getElementById('newDiffInput');
+  const val = input?.value.trim();
+  if(!val)return;
+  if(newRaidDiffs.includes(val)){toast('이미 추가됨','err');return;}
+  newRaidName = document.getElementById('newRaidName')?.value || newRaidName;
+  newRaidDiffs.push(val);
+  renderRaidMgmt();
+  document.getElementById('newDiffInput')?.focus();
+}
+function removeNewDiff(idx) {
+  newRaidName = document.getElementById('newRaidName')?.value || newRaidName;
+  newRaidDiffs.splice(idx,1);
+  renderRaidMgmt();
+  document.getElementById('newDiffInput')?.focus();
+}
+
+async function addRaidDiff(raidIdx) {
+  const input = document.getElementById(`addDiff_${raidIdx}`);
+  const val = input?.value.trim();
+  if(!val)return;
+  if(raidConfig[raidIdx].diffs.includes(val)){toast('이미 있는 난이도입니다.','err');return;}
+  raidConfig[raidIdx].diffs.push(val);
+  await saveRaidConfig();
+  renderRaidMgmt();
+  document.getElementById(`addDiff_${raidIdx}`)?.focus();
+}
+async function removeRaidDiff(raidIdx, diffIdx) {
+  if(raidConfig[raidIdx].diffs.length<=1){toast('최소 1개 이상 필요합니다.','err');return;}
+  raidConfig[raidIdx].diffs.splice(diffIdx,1);
+  await saveRaidConfig();
+  renderRaidMgmt();
+  renderRaidButtons();
+}
+
+async function deleteRaid(idx) {
+  const raidName = raidConfig[idx].name;
+  if(!confirm(`"${raidName}" 레이드를 삭제하시겠습니까?`))return;
+  raidConfig.splice(idx,1);
+  await saveRaidConfig();
+  renderRaidMgmt();
+  renderRaidButtons();
+  if(selectedRaid===raidName){selectedRaid=null;document.getElementById('selRaidName').textContent='';}
+  toast('삭제 완료');
+}
+
+async function addRaid() {
+  const name = document.getElementById('newRaidName').value.trim();
+  if(!name){toast('레이드명을 입력해주세요.','err');return;}
+  if(raidConfig.some(r=>r.name===name)){toast('이미 존재하는 레이드입니다.','err');return;}
+  if(!newRaidDiffs.length){toast('난이도를 하나 이상 추가해주세요.','err');return;}
+  raidConfig.push({name, diffs:[...newRaidDiffs]});
+  newRaidDiffs=[];
+  newRaidName='';
+  await saveRaidConfig();
+  renderRaidMgmt();
+  renderRaidButtons();
+  toast(name+' 추가 완료');
+}
+
+/* ─── 기록 입력 상태 ── */
+let selectedDiff = '노말';
+let selectedRaid = null;
+let selectedChars = new Set();
+
+function selDiff(d) {
+  selectedDiff = d;
+  // 노말/하드/솔로는 색상, 그 외는 골드 계열
+  const colorMap = {'노말':'on-normal','하드':'on-hard','솔로':'on-solo'};
+  document.querySelectorAll('.diff-btn').forEach(b => {
+    const active = b.dataset.diff === d;
+    const colorCls = colorMap[d] || 'on-normal';
+    b.className = 'diff-btn' + (active ? ' ' + colorCls : '');
+  });
+}
+
+function updateDiffButtons(avail) {
+  const container = document.getElementById('diffBtns');
+  if(!avail || !avail.length){
+    container.innerHTML = '<span style="color:var(--muted);font-size:.82rem;">레이드 선택 후 표시됩니다</span>';
+    return;
+  }
+  container.innerHTML = avail.map(d =>
+    `<button class="diff-btn" data-diff="${esc(d)}" onclick="selDiff(this.dataset.diff)">${esc(d)}</button>`
+  ).join('');
+  // 현재 선택 유지 or 첫 번째로
+  selDiff(avail.includes(selectedDiff) ? selectedDiff : avail[0]);
+}
+
+function selRaid(btn, idx) {
+  const raid = raidConfig[idx];
+  if(!raid) return;
+  selectedRaid = raid.name;
+  document.querySelectorAll('.raid-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('selRaidName').textContent = '';
+  updateDiffButtons(raid.diffs || []);
+}
+
+function toggleChar(charId) {
+  const btn = document.getElementById('cb-' + charId);
+  if (selectedChars.has(charId)) {
+    selectedChars.delete(charId);
+    btn?.classList.remove('active');
+  } else {
+    selectedChars.add(charId);
+    btn?.classList.add('active');
+  }
+  updateSaveInfo();
+}
+
+function updateSaveInfo() {
+  const n = selectedChars.size;
+  const el = document.getElementById('selCount');
+  el.textContent = n + '명 선택';
+  el.className = 'sel-count' + (n > 0 ? ' has' : '');
+  document.getElementById('saveCountTxt').textContent = n > 0 ? `(${n}명)` : '';
+}
+
+/* ─── 캐릭터 그룹 렌더링 ── */
+function renderCharGroups() {
+  const grouped = {};
+  const ungrouped = [];
+
+  chars.forEach(c => {
+    if (c.roster_group) {
+      if (!grouped[c.roster_group]) grouped[c.roster_group] = { chars: [] };
+      grouped[c.roster_group].chars.push(c);
+    } else {
+      ungrouped.push(c);
+    }
+  });
+
+  let html = '';
+
+  Object.values(grouped).forEach(group => {
+    // 아이템레벨 내림차순 정렬
+    group.chars.sort((a, b) => (b.item_level || 0) - (a.item_level || 0));
+    const topName = group.chars[0]?.name || '불러온 캐릭터';
+    const ids = JSON.stringify(group.chars.map(c=>c.id));
+    const groupId = group.chars[0].roster_group;
+    html += `<div class="char-group">
+      <div class="group-label" style="display:flex;align-items:center;justify-content:space-between;">
+        <span>${esc(topName)} 로스터</span>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <span onclick='syncRosterGroup("${groupId}")' style="cursor:pointer;color:var(--muted);font-size:.7rem;padding:1px 6px;border-radius:3px;border:1px solid transparent;transition:all .15s;" onmouseover="this.style.color='var(--gold)';this.style.borderColor='var(--gold-d)'" onmouseout="this.style.color='var(--muted)';this.style.borderColor='transparent'">↻ 업데이트</span>
+          <span onclick='delRosterGroup(${ids})' style="cursor:pointer;color:var(--muted);font-size:.7rem;padding:1px 6px;border-radius:3px;border:1px solid transparent;transition:all .15s;" onmouseover="this.style.color='var(--error)';this.style.borderColor='var(--error)'" onmouseout="this.style.color='var(--muted)';this.style.borderColor='transparent'">원정대 삭제</span>
+        </div>
+      </div>
+      <div class="char-btns">${group.chars.map(charBtnHtml).join('')}</div>
+    </div>`;
+  });
+
+  if (ungrouped.length > 0) {
+    ungrouped.sort((a, b) => (b.item_level || 0) - (a.item_level || 0));
+    html += `<div class="char-group">
+      <div class="group-label">직접 추가</div>
+      <div class="char-btns">${ungrouped.map(charBtnHtml).join('')}</div>
+    </div>`;
+  }
+
+  document.getElementById('charGroups').innerHTML = html || '<div style="color:var(--muted);font-size:.83rem;padding:5px 0;">등록된 캐릭터가 없습니다.</div>';
+  updateSaveInfo();
+}
+
+function charBtnHtml(c) {
+  const on = selectedChars.has(c.id);
+  const ilvl = c.item_level ? `(${c.item_level})` : '';
+  return `<div class="char-btn${on?' active':''}" id="cb-${c.id}">
+    <div class="cb-inner" onclick="toggleChar('${c.id}')">
+      <span class="cb-name">${esc(c.name)}${ilvl}</span>
+      ${c.class ? `<span class="cb-meta">${esc(c.class)}</span>` : ''}
+    </div>
+    <span class="cb-del" onclick="delChar('${c.id}')" title="삭제">×</span>
+  </div>`;
+}
+
+/* ─── 캐릭터 관리 ── */
+let chars = [];
+let apiResults = [];
+
+function toggleForm(type) {
+  const other = type==='api'?'manual':'api';
+  const el = document.getElementById(type+'Form');
+  el.style.display = el.style.display!=='none' ? 'none' : 'block';
+  document.getElementById(other+'Form').style.display = 'none';
+}
+
+async function loadChars() {
+  if(!sb) return;
+  const {data,error} = await sb.from('characters').select('*').order('item_level',{ascending:false});
+  if(error){toast('캐릭터 로딩 실패: '+error.message,'err');return;}
+  chars = data||[];
+  fillDropdowns();
+  renderCharGroups();
+  syncClassDatalist();
+}
+
+// DB에 저장된 클래스를 콤보박스 목록에 자동 반영
+function syncClassDatalist() {
+  // 별도 작업 불필요 - getComboItems()에서 chars 배열을 실시간 참조
+}
+
+/* ─── 클래스 콤보박스 ── */
+const CLASS_PRESETS = [
+  {g:'전사',  items:['워로드','홀리나이트','가디언나이트','디스트로이어','버서커','슬레이어','발키리']},
+  {g:'무도가',items:['창술사','배틀마스터','스트라이커','인파이터','브레이커','기공사']},
+  {g:'헌터',  items:['데빌헌터','건슬링어','호크아이','블래스터','스카우터']},
+  {g:'마법사',items:['서머너','아르카나','소서리스','바드']},
+  {g:'암살자',items:['리퍼','데모닉','소울이터','블레이드']},
+  {g:'스페셜리스트',items:['기상술사','환수사','도화가']},
+];
+let _comboOpen=false,_comboFocus=0;
+
+function openCombo(){
+  _comboOpen=true;_comboFocus=0;
+  renderCombo(document.getElementById('cClass').value);
+  document.getElementById('comboList').style.display='block';
+}
+function closeComboDelay(){setTimeout(()=>{document.getElementById('comboList').style.display='none';_comboOpen=false;},160);}
+function filterCombo(){if(!_comboOpen)openCombo();else renderCombo(document.getElementById('cClass').value);}
+
+function renderCombo(filter){
+  const fl=(filter||'').toLowerCase();
+  const presetFlat=CLASS_PRESETS.flatMap(g=>g.items);
+  // DB에서 추가된 신규 직업
+  const extras=[...new Set(chars.map(c=>c.class).filter(Boolean))].filter(c=>!presetFlat.includes(c));
+
+  let html='',items=[];
+  CLASS_PRESETS.forEach(grp=>{
+    const f=grp.items.filter(c=>!fl||c.includes(fl));
+    if(!f.length)return;
+    html+=`<div class="combo-grp">${grp.g}</div>`;
+    f.forEach(c=>{html+=`<div class="combo-item" onmousedown="pickCombo('${esc(c)}')">${esc(c)}</div>`;items.push(c);});
+  });
+  if(extras.length){
+    const f=extras.filter(c=>!fl||c.includes(fl));
+    if(f.length){
+      html+=`<div class="combo-grp">직접 추가됨</div>`;
+      f.forEach(c=>{html+=`<div class="combo-item" onmousedown="pickCombo('${esc(c)}')">${esc(c)}</div>`;items.push(c);});
+    }
+  }
+  document.getElementById('comboList').innerHTML=html||`<div class="combo-empty">결과 없음</div>`;
+}
+function pickCombo(val){document.getElementById('cClass').value=val;document.getElementById('comboList').style.display='none';_comboOpen=false;}
+function comboKey(e){
+  const list=document.getElementById('comboList');
+  const items=[...list.querySelectorAll('.combo-item')];
+  if(e.key==='ArrowDown'){e.preventDefault();_comboFocus=Math.min(_comboFocus+1,items.length-1);items.forEach((el,i)=>el.style.background=i===_comboFocus?'rgba(201,170,113,.1)':'');}
+  else if(e.key==='ArrowUp'){e.preventDefault();_comboFocus=Math.max(_comboFocus-1,0);items.forEach((el,i)=>el.style.background=i===_comboFocus?'rgba(201,170,113,.1)':'');}
+  else if(e.key==='Enter'&&_comboOpen&&items[_comboFocus]){e.preventDefault();pickCombo(items[_comboFocus].textContent);}
+  else if(e.key==='Escape'){list.style.display='none';_comboOpen=false;}
+}
+
+function fillDropdowns() {
+  const fopts = '<option value="">전체 캐릭터</option>'
+    + chars.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  document.getElementById('fChar').innerHTML = fopts;
+}
+
+async function addManual() {
+  if(!sb)return;
+  const name=document.getElementById('cName').value.trim();
+  const ilvl=document.getElementById('cIlvl').value;
+  const cls=document.getElementById('cClass').value;
+  if(!name){toast('캐릭터명을 입력해주세요.','err');return;}
+  const {error}=await sb.from('characters').insert([{name,item_level:ilvl?parseFloat(ilvl):null,class:cls||null}]);
+  if(error){toast('추가 실패: '+error.message,'err');return;}
+  document.getElementById('cName').value='';
+  document.getElementById('cIlvl').value='';
+  document.getElementById('cClass').value='';
+  toggleForm('manual');
+  toast(name+' 추가 완료');
+  await loadChars();
+}
+
+async function syncRosterGroup(groupId) {
+  if(!sb)return;
+  const groupChars = chars.filter(c => c.roster_group === groupId);
+  if(!groupChars.length)return;
+  if(typeof GAS_PROXY_URL==='undefined'||!GAS_PROXY_URL){toast('config.js에 GAS_PROXY_URL을 입력해주세요.','err');return;}
+  toast('업데이트 중…');
+  try {
+    const res = await fetch(`${GAS_PROXY_URL}?characterName=${encodeURIComponent(groupChars[0].name)}`);
+    const data = await res.json();
+    if(data?.error) throw new Error(data.error);
+    if(!Array.isArray(data)) throw new Error('응답 형식 오류');
+    // 이름으로 매핑 (소문자 비교)
+    const nameToId = new Map(groupChars.map(c=>[c.name.toLowerCase(), c.id]));
+    let updated = 0;
+    for(const ac of data) {
+      const cid = nameToId.get(ac.CharacterName.toLowerCase());
+      if(!cid) continue;
+      const newIlvl = parseIlvl(ac.ItemMaxLevel||ac.ItemAvgLevel)||null;
+      const {error} = await sb.from('characters').update({item_level:newIlvl, class:ac.CharacterClassName||null}).eq('id',cid);
+      if(!error) updated++;
+    }
+    toast(`${updated}명 템렙 업데이트 완료`);
+    await loadChars();
+  } catch(e) {
+    toast('업데이트 실패: '+e.message,'err');
+  }
+}
+
+async function delRosterGroup(ids) {
+  if(!confirm(`원정대 전체(${ids.length}명)를 삭제하시겠습니까?\n(레이드 기록은 유지됩니다)`))return;
+  if(!sb)return;
+  const {error}=await sb.from('characters').delete().in('id',ids);
+  if(error){toast('삭제 실패: '+error.message,'err');return;}
+  ids.forEach(id=>selectedChars.delete(id));
+  toast('원정대 삭제 완료');
+  await loadChars();
+}
+
+async function delChar(id) {
+  const c=chars.find(x=>x.id===id);
+  if(!confirm(`"${c?.name||'이 캐릭터'}"를 삭제하시겠습니까?\n(레이드 기록은 유지됩니다)`))return;
+  if(!sb)return;
+  const {error}=await sb.from('characters').delete().eq('id',id);
+  if(error){toast('삭제 실패: '+error.message,'err');return;}
+  selectedChars.delete(id);
+  toast('캐릭터 삭제 완료');
+  await loadChars();
+}
+
+/* ─── Lost Ark API ── */
+async function lookupAPI() {
+  const name = document.getElementById('apiName').value.trim();
+  if(!name){toast('캐릭터명을 입력해주세요.','err');return;}
+  if(typeof GAS_PROXY_URL==='undefined'||!GAS_PROXY_URL){toast('config.js에 GAS_PROXY_URL을 입력해주세요.','err');return;}
+  const btn=document.getElementById('apiBtn');
+  btn.disabled=true; btn.textContent='검색 중…';
+  try {
+    const res = await fetch(`${GAS_PROXY_URL}?characterName=${encodeURIComponent(name)}`);
+    const data = await res.json();
+    if(data?.error) throw new Error(data.error);
+    if(!Array.isArray(data)) throw new Error('응답 형식 오류: '+JSON.stringify(data).slice(0,100));
+    if(!data.length) throw new Error('캐릭터를 찾을 수 없습니다.');
+    // 템렙 내림차순 정렬
+    data.sort((a,b)=>parseIlvl(b.ItemMaxLevel||b.ItemAvgLevel)-parseIlvl(a.ItemMaxLevel||a.ItemAvgLevel));
+    apiResults=data;
+    showImportModal(data);
+  } catch(e){toast('조회 실패: '+e.message,'err');}
+  finally{btn.disabled=false;btn.textContent='🔍 검색';}
+}
+
+function showImportModal(results) {
+  const existNames = new Set(chars.map(c=>c.name.toLowerCase()));
+  document.getElementById('modalTitle').textContent=`로스터 검색 결과 (${results.length}명)`;
+  document.getElementById('modalBody').innerHTML = results.map((c,i)=>{
+    const ilvl=parseIlvl(c.ItemMaxLevel || c.ItemAvgLevel);
+    const exists=existNames.has(c.CharacterName.toLowerCase());
+    return `<div class="ic-card ${exists?'ic-exists':''}" id="ic-${i}" onclick="${exists?'':` toggleIC(${i})`}">
+      <div class="ic-check" id="ic-chk-${i}">${exists?'✓':''}</div>
+      <div class="ic-info">
+        <div class="ic-name">${esc(c.CharacterName)}</div>
+        <div class="ic-meta">${esc(c.ServerName)} · ${esc(c.CharacterClassName)} · Lv.${c.CharacterLevel}</div>
+      </div>
+      <div style="text-align:right;">
+        <div class="ic-ilvl">${ilvl>0?ilvl.toLocaleString():'—'}</div>
+        ${exists?'<div class="ic-exists-tag">이미 등록됨</div>':''}
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('importOverlay').style.display='flex';
+}
+
+const selectedIC=new Set();
+function toggleIC(i){
+  if(selectedIC.has(i)){selectedIC.delete(i);document.getElementById(`ic-${i}`).classList.remove('ic-selected');document.getElementById(`ic-chk-${i}`).textContent='';}
+  else{selectedIC.add(i);document.getElementById(`ic-${i}`).classList.add('ic-selected');document.getElementById(`ic-chk-${i}`).textContent='✓';}
+}
+
+async function importSelected() {
+  if(!sb||!selectedIC.size){toast('선택된 캐릭터가 없습니다.','err');return;}
+  const btn=document.getElementById('importBtn');
+  btn.disabled=true;btn.textContent='추가 중…';
+  // 같은 계정 캐릭터가 이미 DB에 있으면 그 roster_group 재사용 → 같은 그룹으로 합쳐짐
+  const existingRosterChar = chars.find(c =>
+    c.roster_group && apiResults.some(r => r.CharacterName === c.name)
+  );
+  const rosterGroupId = existingRosterChar?.roster_group || crypto.randomUUID();
+  const rows=[...selectedIC].map(i=>{
+    const c=apiResults[i];
+    return {name:c.CharacterName,item_level:parseIlvl(c.ItemMaxLevel||c.ItemAvgLevel)||null,class:c.CharacterClassName||null,server:c.ServerName||null,roster_group:rosterGroupId};
+  });
+  const {error}=await sb.from('characters').insert(rows);
+  if(error){toast('추가 실패: '+error.message,'err');btn.disabled=false;btn.textContent='선택 추가';return;}
+  toast(`${rows.length}명 추가 완료`);
+  selectedIC.clear();closeModal();
+  document.getElementById('apiName').value='';
+  toggleForm('api');
+  await loadChars();
+  btn.disabled=false;btn.textContent='선택 추가';
+}
+
+function closeModal(){document.getElementById('importOverlay').style.display='none';selectedIC.clear();}
+
+/* ─── 기록 저장 (다중 캐릭터) ── */
+async function saveRecord() {
+  if(!sb)return;
+  const date=document.getElementById('rDate').value;
+  const time=getTimeVal();
+  if(!date){toast('날짜를 선택해주세요.','err');return;}
+  if(!selectedRaid){toast('레이드를 선택해주세요.','err');return;}
+  if(!selectedChars.size){toast('캐릭터를 선택해주세요.','err');return;}
+
+  const batchId = crypto.randomUUID();
+  const records=[...selectedChars].map(charId=>{
+    const c=chars.find(x=>x.id===charId);
+    return {character_id:charId,character_name:c?.name||'알 수 없음',character_class:c?.class||null,date,raid_time:time||null,raid_name:selectedRaid,difficulty:selectedDiff,memo:null,batch_id:batchId};
+  });
+
+  const {error}=await sb.from('raid_records').insert(records);
+  if(error){toast('저장 실패: '+error.message,'err');return;}
+  toast(`${records.length}개 기록 저장 완료`);
+  selectedChars.clear();
+  renderCharGroups();
+  if(currentTab==='view'){await loadCalData();loadRecords();}
+}
+
+/* ─── 달력 ── */
+let calY=new Date().getFullYear(),calM=new Date().getMonth()+1,calData=[],selDate=null;
+
+async function loadCalData() {
+  if(!sb)return;
+  const pad=n=>String(n).padStart(2,'0');
+  const start=`${calY}-${pad(calM)}-01`,end=`${calY}-${pad(calM)}-${pad(new Date(calY,calM,0).getDate())}`;
+  const {data,error}=await sb.from('raid_records').select('id,date,raid_time,difficulty').gte('date',start).lte('date',end);
+  if(error){toast('달력 로딩 실패: '+error.message,'err');return;}
+  calData=data||[];renderCal();
+}
+
+function renderCal() {
+  const KRM=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+  document.getElementById('calTitle').textContent=`${calY}년 ${KRM[calM-1]}`;
+  const pad=n=>String(n).padStart(2,'0');
+  const firstDow=new Date(calY,calM-1,1).getDay(),lastDay=new Date(calY,calM,0).getDate(),today=todayStr();
+  const byDate={};
+  calData.forEach(r=>{(byDate[r.date]=byDate[r.date]||[]).push(r);});
+  const heads=['일','월','화','수','목','금','토'].map(d=>`<div class="cal-head">${d}</div>`).join('');
+  let cells='';
+  for(let i=0;i<firstDow;i++)cells+='<div class="cal-empty"></div>';
+  for(let d=1;d<=lastDay;d++){
+    const ds=`${calY}-${pad(calM)}-${pad(d)}`,rs=byDate[ds]||[];
+    const diffs=[...new Set(rs.map(r=>r.difficulty))];
+    const cls=['cal-cell',ds===today?'today':'',ds===selDate?'selected':''].filter(Boolean).join(' ');
+    cells+=`<div class="${cls}" onclick="selectDay('${ds}')"><span class="cal-day-num">${d}</span>${rs.length?`<span class="cal-cnt">${rs.length}</span>`:''}<div class="cal-dots">${diffs.map(dif=>`<span class="cdot cdot-${diffCls(dif)}"></span>`).join('')}</div></div>`;
+  }
+  document.getElementById('calGrid').innerHTML=heads+cells;
+}
+
+function selectDay(ds){selDate=ds;renderCal();renderDateChip();loadRecords();}
+function clearDay(){selDate=null;renderCal();renderDateChip();loadRecords();}
+function renderDateChip(){
+  const el=document.getElementById('dateChipWrap');
+  el.innerHTML=selDate?`<span class="date-chip" onclick="clearDay()">📅 ${selDate.replace(/-/g,'.')} ×</span>`:'';
+}
+function moveMon(dir){calM+=dir;if(calM>12){calM=1;calY++;}if(calM<1){calM=12;calY--;}selDate=null;renderDateChip();loadCalData();}
+function gotoToday(){const n=new Date();calY=n.getFullYear();calM=n.getMonth()+1;selDate=null;renderDateChip();loadCalData();loadRecords();}
+
+/* ─── 기록 테이블 (묶음 표시) ── */
+let _deb=null;
+let recordGroups=[];
+function debouncedLoad(){clearTimeout(_deb);_deb=setTimeout(loadRecords,230);}
+
+async function loadRecords() {
+  if(!sb)return;
+  const charId=document.getElementById('fChar').value,raid=document.getElementById('fRaid').value.trim(),diff=document.getElementById('fDiff').value;
+  let q=sb.from('raid_records').select('*').order('date',{ascending:false}).order('raid_time',{ascending:false,nullsFirst:false}).order('created_at',{ascending:false});
+  if(selDate)q=q.eq('date',selDate);
+  if(charId)q=q.eq('character_id',charId);
+  if(diff)q=q.eq('difficulty',diff);
+  if(raid)q=q.ilike('raid_name',`%${raid}%`);
+  const {data,error}=await q;
+  if(error){document.getElementById('recBody').innerHTML=`<tr><td colspan="6"><div class="placeholder"><div class="ph-ico">⚠</div>${esc(error.message)}</div></td></tr>`;return;}
+  const rows=data||[];
+
+  // 날짜+시간+레이드+난이도 기준으로 묶기
+  recordGroups=[];
+  const groupMap={};
+  rows.forEach(r=>{
+    // batch_id 있으면 묶음 기준, 없으면(구 데이터) 날짜+시간+레이드+난이도 기준
+    const key = r.batch_id || `${r.date}||${r.raid_time||''}||${r.raid_name}||${r.difficulty}`;
+    if(!groupMap[key]){
+      groupMap[key]={date:r.date,raid_time:r.raid_time,raid_name:r.raid_name,difficulty:r.difficulty,ids:[],chars:[]};
+      recordGroups.push(groupMap[key]);
+    }
+    groupMap[key].ids.push(r.id);
+    groupMap[key].chars.push({name:r.character_name,cls:r.character_class});
+  });
+
+  document.getElementById('recCount').textContent=`총 ${recordGroups.length}건`;
+  if(!recordGroups.length){
+    document.getElementById('recBody').innerHTML=`<tr><td colspan="6"><div class="placeholder"><div class="ph-ico">⚔</div>기록이 없습니다</div></td></tr>`;
+    return;
+  }
+  document.getElementById('recBody').innerHTML=recordGroups.map((g,idx)=>{
+    const charHtml = g.chars.map((c,i) =>
+      `${i>0?'<span class="char-sep">·</span>':''}<span class="char-tag">${esc(c.name)}${c.cls?` <span class="char-tag-cls">(${esc(c.cls)})</span>`:''}</span>`
+    ).join('');
+    return `<tr>
+      <td style="white-space:nowrap;">${esc(g.date)}</td>
+      <td class="cell-time">${fmtTime(g.raid_time)}</td>
+      <td><div class="cell-chars">${charHtml}</div></td>
+      <td>${esc(g.raid_name)}</td>
+      <td><span class="badge badge-${diffCls(g.difficulty)}">${esc(g.difficulty)}</span></td>
+      <td><button class="row-del" onclick="delGroup(${idx})">삭제</button></td>
+    </tr>`;
+  }).join('');
+}
+
+async function delGroup(idx) {
+  const g=recordGroups[idx];
+  const label=g.chars.length>1?`${g.chars[0].name} 외 ${g.chars.length-1}명`:g.chars[0]?.name||'이 기록';
+  if(!confirm(`"${label}" ${g.raid_name} 기록 ${g.ids.length}개를 삭제하시겠습니까?`))return;
+  if(!sb)return;
+  const {error}=await sb.from('raid_records').delete().in('id',g.ids);
+  if(error){toast('삭제 실패: '+error.message,'err');return;}
+  toast('기록 삭제 완료');
+  await loadCalData();loadRecords();
+}
+
+/* ─── 초기화 ── */
+document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('rDate').value=todayStr();
+  // 시간 셀렉트 - 0~23시 옵션 생성
+  const hSel=document.getElementById('rTimeH');
+  for(let i=0;i<24;i++){
+    const o=document.createElement('option');
+    o.value=String(i).padStart(2,'0');
+    o.textContent=String(i).padStart(2,'0');
+    hSel.appendChild(o);
+  }
+  selectedDiff='노말';
+  if(!initSB())return;
+  loadChars();
+  loadRaidConfig();
+});
+</script>
+</body>
+</html>
