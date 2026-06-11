@@ -305,21 +305,7 @@ tr:hover td{background:rgba(255,255,255,.015);}
         </div>
         <div class="fg">
           <label class="lbl">시작 시간</label>
-          <div style="display:flex;gap:6px;align-items:center;">
-            <select id="rTimeH" style="flex:1;">
-              <option value="">시</option>
-            </select>
-            <span style="color:var(--muted);font-size:.9rem;flex-shrink:0;">:</span>
-            <select id="rTimeM" style="flex:1;">
-              <option value="">분</option>
-              <option value="00">00</option>
-              <option value="10">10</option>
-              <option value="20">20</option>
-              <option value="30">30</option>
-              <option value="40">40</option>
-              <option value="50">50</option>
-            </select>
-          </div>
+          <input id="rTime" type="text" placeholder="예) 14:30" maxlength="5">
         </div>
       </div>
     </div>
@@ -432,6 +418,21 @@ tr:hover td{background:rgba(255,255,255,.015);}
   </div>
 </div>
 
+<!-- 기록 수정 모달 -->
+<div class="overlay" id="editOverlay" style="display:none;" onclick="if(event.target===this)closeEdit()">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-hd">
+      <span class="modal-hd-title">✏ 기록 수정</span>
+      <button class="modal-close" onclick="closeEdit()">✕</button>
+    </div>
+    <div class="modal-body" id="editBody"></div>
+    <div class="modal-ft">
+      <button class="btn btn-ghost" onclick="closeEdit()">취소</button>
+      <button class="btn btn-gold" onclick="saveEditGroup()">저장</button>
+    </div>
+  </div>
+</div>
+
 <!-- 임포트 모달 -->
 <div class="overlay" id="importOverlay" style="display:none;" onclick="if(event.target===this)closeModal()">
   <div class="modal">
@@ -468,9 +469,11 @@ function esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').
 function todayStr(){return new Date().toISOString().split('T')[0];}
 function fmtTime(t){return t?String(t).slice(0,5):'—';}
 function getTimeVal() {
-  const h = document.getElementById('rTimeH').value;
-  const m = document.getElementById('rTimeM').value;
-  return (h !== '' && m !== '') ? `${h}:${m}` : '';
+  const v = document.getElementById('rTime').value.trim();
+  if(!v) return '';
+  // HH:MM 형식 보정
+  if(/^\d{1,2}:\d{2}$/.test(v)) return v.padStart(5,'0');
+  return v;
 }
 function diffCls(d){return{'노말':'normal','하드':'hard','솔로':'solo'}[d]||'normal';}
 function parseIlvl(s){return parseFloat(String(s||'0').replace(/,/g,''))||0;}
@@ -499,6 +502,7 @@ function switchTab(id){
 let raidConfig = []; // [{name:'세르카', diffs:['노말','하드']}, ...]
 let newRaidDiffs = []; // 새 레이드 추가 시 임시 난이도 목록
 let newRaidName = '';  // 새 레이드 이름 임시 보존 (렌더링 시 유지)
+let newRaidType = 'regular'; // 'regular' | 'event'
 
 async function loadRaidConfig() {
   if(!sb) return;
@@ -532,6 +536,7 @@ function renderRaidButtons() {
 function openRaidMgmt() {
   newRaidDiffs = [];
   newRaidName = '';
+  newRaidType = 'regular';
   renderRaidMgmt();
   document.getElementById('raidOverlay').style.display = 'flex';
 }
@@ -547,9 +552,14 @@ function diffTagStyle(active){
 
 function renderRaidMgmt() {
   const listHtml = raidConfig.length
-    ? raidConfig.map((r,i) => `
-      <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);">
-        <span style="flex:0 0 auto;font-weight:700;font-size:.88rem;padding-top:3px;min-width:80px;">${esc(r.name)}</span>
+    ? raidConfig.map((r,i) => {
+      const isEvent = r.type === 'event';
+      const typeBadge = `<span onclick="toggleRaidType(${i})" title="클릭하여 전환" style="cursor:pointer;display:inline-block;padding:1px 7px;border-radius:9px;font-size:.65rem;font-weight:700;border:1px solid ${isEvent?'var(--gold-d)':'var(--border)'};color:${isEvent?'var(--gold)':'var(--muted)'};flex-shrink:0;">${isEvent?'이벤트':'정규'}</span>`;
+      return `<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);">
+        <div style="flex:0 0 auto;padding-top:3px;min-width:70px;">
+          <div style="font-weight:700;font-size:.88rem;margin-bottom:4px;">${esc(r.name)}</div>
+          ${typeBadge}
+        </div>
         <div style="flex:1;display:flex;flex-wrap:wrap;gap:4px;align-items:center;">
           ${r.diffs.map((d,di) => `<span style="${diffTagStyle(true)}">${esc(d)}<span onclick="removeRaidDiff(${i},${di})" style="cursor:pointer;opacity:.6;margin-left:1px;">×</span></span>`).join('')}
           <input id="addDiff_${i}" type="text" placeholder="난이도 추가" style="width:90px;padding:3px 7px;font-size:.75rem;"
@@ -557,7 +567,8 @@ function renderRaidMgmt() {
           <button onclick="addRaidDiff(${i})" class="btn btn-ghost btn-sm" style="padding:2px 8px;font-size:.72rem;">+</button>
         </div>
         <button onclick="deleteRaid(${i})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.1rem;padding:0 4px;line-height:1;flex-shrink:0;" title="레이드 삭제">×</button>
-      </div>`).join('')
+      </div>`;
+    }).join('')
     : '<div style="color:var(--muted);font-size:.84rem;padding:8px 0;">등록된 레이드가 없습니다.</div>';
 
   document.getElementById('raidMgmtBody').innerHTML = `
@@ -569,6 +580,12 @@ function renderRaidMgmt() {
           value="${esc(newRaidName)}"
           oninput="newRaidName=this.value"
           onkeydown="if(event.key==='Enter')document.getElementById('newDiffInput').focus()">
+      </div>
+      <div style="display:flex;gap:6px;margin-bottom:10px;align-items:center;">
+        <span style="font-size:.75rem;color:var(--muted);">타입:</span>
+        <button onclick="newRaidType='regular';renderRaidMgmt();" style="padding:2px 10px;border-radius:9px;font-size:.72rem;font-weight:700;cursor:pointer;border:1px solid ${newRaidType==='regular'?'var(--gold-d)':'var(--border)'};background:${newRaidType==='regular'?'rgba(201,170,113,.1)':'transparent'};color:${newRaidType==='regular'?'var(--gold)':'var(--muted)'};">정규</button>
+        <button onclick="newRaidType='event';renderRaidMgmt();" style="padding:2px 10px;border-radius:9px;font-size:.72rem;font-weight:700;cursor:pointer;border:1px solid ${newRaidType==='event'?'var(--gold-d)':'var(--border)'};background:${newRaidType==='event'?'rgba(201,170,113,.1)':'transparent'};color:${newRaidType==='event'?'var(--gold)':'var(--muted)'};">이벤트</button>
+        <span style="font-size:.68rem;color:var(--muted);">${newRaidType==='event'?'원정대 1회 공용':'캐릭별 주 3개 카운트'}</span>
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-bottom:10px;">
         <span style="font-size:.75rem;color:var(--muted);white-space:nowrap;">난이도:</span>
@@ -596,6 +613,13 @@ function removeNewDiff(idx) {
   newRaidDiffs.splice(idx,1);
   renderRaidMgmt();
   document.getElementById('newDiffInput')?.focus();
+}
+
+async function toggleRaidType(idx) {
+  raidConfig[idx].type = raidConfig[idx].type === 'event' ? 'regular' : 'event';
+  await saveRaidConfig();
+  renderRaidMgmt();
+  if(currentTab==='homework') loadHwData();
 }
 
 async function addRaidDiff(raidIdx) {
@@ -633,7 +657,7 @@ async function addRaid() {
   if(!name){toast('레이드명을 입력해주세요.','err');return;}
   if(raidConfig.some(r=>r.name===name)){toast('이미 존재하는 레이드입니다.','err');return;}
   if(!newRaidDiffs.length){toast('난이도를 하나 이상 추가해주세요.','err');return;}
-  raidConfig.push({name, diffs:[...newRaidDiffs]});
+  raidConfig.push({name, diffs:[...newRaidDiffs], type:newRaidType});
   newRaidDiffs=[];
   newRaidName='';
   await saveRaidConfig();
@@ -1090,7 +1114,10 @@ async function loadRecords() {
       <td><div class="cell-chars">${charHtml}</div></td>
       <td>${esc(g.raid_name)}</td>
       <td><span class="badge badge-${diffCls(g.difficulty)}">${esc(g.difficulty)}</span></td>
-      <td><button class="row-del" onclick="delGroup(${idx})">삭제</button></td>
+      <td style="white-space:nowrap;">
+        <button class="row-del" onclick="openEditGroup(${idx})" style="color:var(--muted);margin-right:4px;">수정</button>
+        <button class="row-del" onclick="delGroup(${idx})">삭제</button>
+      </td>
     </tr>`;
   }).join('');
 }
@@ -1104,6 +1131,88 @@ async function delGroup(idx) {
   if(error){toast('삭제 실패: '+error.message,'err');return;}
   toast('기록 삭제 완료');
   await loadCalData();loadRecords();
+}
+
+/* ─── 기록 수정 ── */
+let editGroupIdx = null;
+let editSelDiff = '';
+
+function openEditGroup(idx) {
+  editGroupIdx = idx;
+  const g = recordGroups[idx];
+  editSelDiff = g.difficulty;
+
+  const raidOpts = raidConfig.map(r =>
+    `<option value="${esc(r.name)}"${r.name===g.raid_name?' selected':''}>${esc(r.name)}</option>`
+  ).join('');
+  // 기존 레이드명이 config에 없으면 추가
+  const inConfig = raidConfig.some(r=>r.name===g.raid_name);
+  const extraOpt = !inConfig ? `<option value="${esc(g.raid_name)}" selected>${esc(g.raid_name)}</option>` : '';
+
+  document.getElementById('editBody').innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div class="fg">
+        <label class="lbl">레이드명</label>
+        <select id="editRaidName" onchange="refreshEditDiffs()">
+          ${extraOpt}${raidOpts}
+        </select>
+      </div>
+      <div class="fg">
+        <label class="lbl">난이도</label>
+        <div class="diff-btns" id="editDiffBtns"></div>
+      </div>
+      <div class="fg">
+        <label class="lbl">시작 시간</label>
+        <input id="editTime" type="text" placeholder="예) 14:30" maxlength="5"
+          value="${g.raid_time ? fmtTime(g.raid_time) : ''}">
+      </div>
+    </div>`;
+
+  refreshEditDiffs();
+  document.getElementById('editOverlay').style.display = 'flex';
+}
+
+function refreshEditDiffs() {
+  const raidName = document.getElementById('editRaidName').value;
+  const raid = raidConfig.find(r => r.name === raidName);
+  const g = recordGroups[editGroupIdx];
+  const avail = raid?.diffs?.length ? raid.diffs : [g.difficulty];
+  if(!avail.includes(editSelDiff)) editSelDiff = avail[0];
+  const colorMap = {'노말':'on-normal','하드':'on-hard','솔로':'on-solo'};
+  document.getElementById('editDiffBtns').innerHTML = avail.map(d => {
+    const active = d === editSelDiff;
+    return `<button class="diff-btn${active?' '+(colorMap[editSelDiff]||'on-normal'):''}" data-diff="${esc(d)}" onclick="pickEditDiff(this)">${esc(d)}</button>`;
+  }).join('');
+}
+
+function pickEditDiff(btn) {
+  editSelDiff = btn.dataset.diff;
+  const colorMap = {'노말':'on-normal','하드':'on-hard','솔로':'on-solo'};
+  const colorCls = colorMap[editSelDiff]||'on-normal';
+  document.querySelectorAll('#editDiffBtns .diff-btn').forEach(b =>
+    b.className = 'diff-btn'+(b.dataset.diff===editSelDiff?' '+colorCls:''));
+}
+
+async function saveEditGroup() {
+  if(!sb || editGroupIdx===null) return;
+  const g = recordGroups[editGroupIdx];
+  const raidName = document.getElementById('editRaidName').value.trim();
+  const timeVal  = document.getElementById('editTime').value.trim();
+  if(!raidName){toast('레이드명을 입력해주세요.','err');return;}
+  if(!editSelDiff){toast('난이도를 선택해주세요.','err');return;}
+  const updates = {raid_name:raidName, difficulty:editSelDiff, raid_time:timeVal||null};
+  const {error} = await sb.from('raid_records').update(updates).in('id',g.ids);
+  if(error){toast('수정 실패: '+error.message,'err');return;}
+  toast('수정 완료');
+  closeEdit();
+  await loadCalData();
+  loadRecords();
+  if(currentTab==='homework') loadHwData();
+}
+
+function closeEdit() {
+  document.getElementById('editOverlay').style.display='none';
+  editGroupIdx=null;
 }
 
 /* ─── 숙제 현황 ── */
@@ -1183,10 +1292,9 @@ function renderHwData(groupChars, records) {
   groupChars.forEach(c => charRecords[c.name] = []);
   records.forEach(r => { if(charRecords[r.character_name] !== undefined) charRecords[r.character_name].push(r); });
 
-  // 아브렐슈드 = 이벤트 레이드로 분리, 나머지 최대 3개
-  const EVENT_RAID = '아브렐슈드';
-  const mainRaids  = raidConfig.filter(r => r.name !== EVENT_RAID).slice(0, 3);
-  const eventRaid  = raidConfig.find(r => r.name === EVENT_RAID);
+  // type 기준으로 정규/이벤트 분리 (미설정은 정규로 취급)
+  const mainRaids  = raidConfig.filter(r => (r.type||'regular') === 'regular').slice(0, 3);
+  const eventRaids = raidConfig.filter(r => r.type === 'event');
 
   const cardsHtml = groupChars.map(c => {
     const done = charRecords[c.name] || [];
@@ -1203,7 +1311,7 @@ function renderHwData(groupChars, records) {
         }).join('')
       : `<div style="color:var(--muted);font-size:.8rem;padding:4px 0;">레이드 없음</div>`;
 
-    const eventRow = ''; // 아브렐슈드는 원정대 공용으로 아래 별도 표시
+    const eventRow = ''; // 이벤트 레이드는 원정대 공용으로 아래 별도 표시
 
     const doneCount = mainRaids.filter(r => doneRaids.has(r.name)).length;
     const allDone   = mainRaids.length > 0 && doneCount >= mainRaids.length;
@@ -1221,16 +1329,18 @@ function renderHwData(groupChars, records) {
     </div>`;
   }).join('');
 
-  // 아브렐슈드: 원정대 중 누구 한 명이라도 했으면 완료
-  const eventSection = eventRaid ? (() => {
-    const abrDone = records.some(r => r.raid_name === EVENT_RAID);
-    return `<div style="margin-top:16px;background:var(--card);border:1px solid ${abrDone?'var(--success)':'var(--border)'};border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:12px;">
-      <span style="font-size:.62rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;">이벤트 · 원정대 공용</span>
-      <span style="font-size:.9rem;color:${abrDone?'var(--success)':'var(--border)'};">${abrDone?'✓':'○'}</span>
-      <span style="font-size:.88rem;font-weight:700;color:${abrDone?'var(--success)':'var(--text)'};">${esc(EVENT_RAID)}</span>
-      <span style="margin-left:auto;font-size:.72rem;color:var(--muted);">원정대 내 1회</span>
-    </div>`;
-  })() : '';
+  // 이벤트 레이드: 원정대 중 누구 한 명이라도 했으면 완료
+  const eventSection = eventRaids.length
+    ? eventRaids.map(er => {
+        const isDone = records.some(r => r.raid_name === er.name);
+        return `<div style="margin-top:10px;background:var(--card);border:1px solid ${isDone?'var(--success)':'var(--border)'};border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:12px;">
+          <span style="font-size:.62rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;">이벤트 · 원정대 공용</span>
+          <span style="font-size:.9rem;color:${isDone?'var(--success)':'var(--border)'};">${isDone?'✓':'○'}</span>
+          <span style="font-size:.88rem;font-weight:700;color:${isDone?'var(--success)':'var(--text)'};">${esc(er.name)}</span>
+          <span style="margin-left:auto;font-size:.72rem;color:var(--muted);">원정대 내 1회</span>
+        </div>`;
+      }).join('')
+    : '';
 
   document.getElementById('hwContent').innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:12px;">${cardsHtml}</div>${eventSection}`;
 }
@@ -1238,14 +1348,6 @@ function renderHwData(groupChars, records) {
 /* ─── 초기화 ── */
 document.addEventListener('DOMContentLoaded',()=>{
   document.getElementById('rDate').value=todayStr();
-  // 시간 셀렉트 - 0~23시 옵션 생성
-  const hSel=document.getElementById('rTimeH');
-  for(let i=0;i<24;i++){
-    const o=document.createElement('option');
-    o.value=String(i).padStart(2,'0');
-    o.textContent=String(i).padStart(2,'0');
-    hSel.appendChild(o);
-  }
   selectedDiff='노말';
   if(!initSB())return;
   loadChars();
