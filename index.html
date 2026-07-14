@@ -305,7 +305,7 @@ tr:hover td{background:rgba(255,255,255,.015);}
         </div>
         <div class="fg">
           <label class="lbl">시작 시간</label>
-          <input id="rTime" type="text" placeholder="예) 14:30" maxlength="5">
+          <input id="rTime" type="text" placeholder="예) 1430 또는 14:30" maxlength="5" onblur="formatTimeInput(this)">
         </div>
       </div>
     </div>
@@ -468,12 +468,23 @@ function initSB() {
 function esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function todayStr(){return new Date().toISOString().split('T')[0];}
 function fmtTime(t){return t?String(t).slice(0,5):'—';}
+function formatTimeInput(inp) {
+  const digits = inp.value.replace(/\D/g,'');
+  if(digits.length < 3) return;
+  const m = digits.slice(-2);
+  const h = digits.slice(0, digits.length-2).padStart(2,'0');
+  inp.value = `${h}:${m}`;
+}
 function getTimeVal() {
   const v = document.getElementById('rTime').value.trim();
   if(!v) return '';
-  // HH:MM 형식 보정
-  if(/^\d{1,2}:\d{2}$/.test(v)) return v.padStart(5,'0');
-  return v;
+  const digits = v.replace(/\D/g,'');
+  if(digits.length >= 3) {
+    const m = digits.slice(-2);
+    const h = digits.slice(0, digits.length-2).padStart(2,'0');
+    return `${h}:${m}`;
+  }
+  return v.padStart(5,'0');
 }
 function diffCls(d){return{'노말':'normal','하드':'hard','솔로':'solo'}[d]||'normal';}
 function parseIlvl(s){return parseFloat(String(s||'0').replace(/,/g,''))||0;}
@@ -1009,6 +1020,14 @@ function closeModal(){document.getElementById('importOverlay').style.display='no
 async function saveRecord() {
   if(!sb)return;
   const date=document.getElementById('rDate').value;
+  // 시간 미입력 시 현재 시각 자동 입력
+  const rTimeEl=document.getElementById('rTime');
+  if(!rTimeEl.value.trim()){
+    const now=new Date();
+    rTimeEl.value=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+  } else {
+    formatTimeInput(rTimeEl);
+  }
   const time=getTimeVal();
   if(!date){toast('날짜를 선택해주세요.','err');return;}
   if(!selectedRaid){toast('레이드를 선택해주세요.','err');return;}
