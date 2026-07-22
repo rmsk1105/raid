@@ -1043,6 +1043,7 @@ async function saveRecord() {
   if(error){toast('저장 실패: '+error.message,'err');return;}
   toast(`${records.length}개 기록 저장 완료`);
   selectedChars.clear();
+  rTimeEl.value='';
   renderCharGroups();
   if(currentTab==='view'){await loadCalData();loadRecords();}
 }
