@@ -510,10 +510,11 @@ function switchTab(id){
 }
 
 /* ─── 레이드 설정 (Supabase app_settings에서 로드) ── */
-let raidConfig = []; // [{name:'세르카', diffs:['노말','하드']}, ...]
+let raidConfig = []; // [{name:'세르카', diffs:['노말','하드'], minLevel:1750}, ...]
 let newRaidDiffs = []; // 새 레이드 추가 시 임시 난이도 목록
 let newRaidName = '';  // 새 레이드 이름 임시 보존 (렌더링 시 유지)
 let newRaidType = 'regular'; // 'regular' | 'event'
+let newRaidMinLevel = ''; // 새 레이드 최소 템렙 임시 보존
 
 async function loadRaidConfig() {
   if(!sb) return;
@@ -548,6 +549,7 @@ function openRaidMgmt() {
   newRaidDiffs = [];
   newRaidName = '';
   newRaidType = 'regular';
+  newRaidMinLevel = '';
   renderRaidMgmt();
   document.getElementById('raidOverlay').style.display = 'flex';
 }
@@ -567,9 +569,15 @@ function renderRaidMgmt() {
       const isEvent = r.type === 'event';
       const typeBadge = `<span onclick="toggleRaidType(${i})" title="클릭하여 전환" style="cursor:pointer;display:inline-block;padding:1px 7px;border-radius:9px;font-size:.65rem;font-weight:700;border:1px solid ${isEvent?'var(--gold-d)':'var(--border)'};color:${isEvent?'var(--gold)':'var(--muted)'};flex-shrink:0;">${isEvent?'이벤트':'정규'}</span>`;
       return `<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);">
-        <div style="flex:0 0 auto;padding-top:3px;min-width:70px;">
+        <div style="flex:0 0 auto;padding-top:3px;min-width:90px;">
           <div style="font-weight:700;font-size:.88rem;margin-bottom:4px;">${esc(r.name)}</div>
           ${typeBadge}
+          <div style="margin-top:5px;display:flex;align-items:center;gap:2px;">
+            <input type="number" value="${r.minLevel||''}" placeholder="템렙 제한" title="최소 템렙 (비우면 제한 없음)"
+              onchange="updateRaidMinLevel(${i}, this.value)"
+              style="width:64px;padding:2px 5px;font-size:.68rem;">
+            <span style="font-size:.62rem;color:var(--muted);">+</span>
+          </div>
         </div>
         <div style="flex:1;display:flex;flex-wrap:wrap;gap:4px;align-items:center;">
           ${r.diffs.map((d,di) => `<span style="${diffTagStyle(true)}">${esc(d)}<span onclick="removeRaidDiff(${i},${di})" style="cursor:pointer;opacity:.6;margin-left:1px;">×</span></span>`).join('')}
@@ -597,6 +605,12 @@ function renderRaidMgmt() {
         <button onclick="newRaidType='regular';renderRaidMgmt();" style="padding:2px 10px;border-radius:9px;font-size:.72rem;font-weight:700;cursor:pointer;border:1px solid ${newRaidType==='regular'?'var(--gold-d)':'var(--border)'};background:${newRaidType==='regular'?'rgba(201,170,113,.1)':'transparent'};color:${newRaidType==='regular'?'var(--gold)':'var(--muted)'};">정규</button>
         <button onclick="newRaidType='event';renderRaidMgmt();" style="padding:2px 10px;border-radius:9px;font-size:.72rem;font-weight:700;cursor:pointer;border:1px solid ${newRaidType==='event'?'var(--gold-d)':'var(--border)'};background:${newRaidType==='event'?'rgba(201,170,113,.1)':'transparent'};color:${newRaidType==='event'?'var(--gold)':'var(--muted)'};">이벤트</button>
         <span style="font-size:.68rem;color:var(--muted);">${newRaidType==='event'?'원정대 1회 공용':'캐릭별 주 3개 카운트'}</span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;">
+        <span style="font-size:.75rem;color:var(--muted);white-space:nowrap;">최소 템렙:</span>
+        <input id="newRaidMinLevel" type="number" placeholder="제한 없음" value="${esc(newRaidMinLevel)}"
+          oninput="newRaidMinLevel=this.value"
+          style="width:90px;padding:3px 7px;font-size:.75rem;">
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-bottom:10px;">
         <span style="font-size:.75rem;color:var(--muted);white-space:nowrap;">난이도:</span>
@@ -651,6 +665,13 @@ async function removeRaidDiff(raidIdx, diffIdx) {
   renderRaidButtons();
 }
 
+async function updateRaidMinLevel(idx, val) {
+  const num = val.trim() ? parseFloat(val) : null;
+  raidConfig[idx].minLevel = (num!=null && !isNaN(num)) ? num : null;
+  await saveRaidConfig();
+  if(currentTab==='homework') loadHwData();
+}
+
 async function deleteRaid(idx) {
   const raidName = raidConfig[idx].name;
   if(!confirm(`"${raidName}" 레이드를 삭제하시겠습니까?`))return;
@@ -668,9 +689,11 @@ async function addRaid() {
   if(!name){toast('레이드명을 입력해주세요.','err');return;}
   if(raidConfig.some(r=>r.name===name)){toast('이미 존재하는 레이드입니다.','err');return;}
   if(!newRaidDiffs.length){toast('난이도를 하나 이상 추가해주세요.','err');return;}
-  raidConfig.push({name, diffs:[...newRaidDiffs], type:newRaidType});
+  const minLv = newRaidMinLevel.trim() ? parseFloat(newRaidMinLevel) : null;
+  raidConfig.push({name, diffs:[...newRaidDiffs], type:newRaidType, minLevel:(minLv!=null && !isNaN(minLv))?minLv:null});
   newRaidDiffs=[];
   newRaidName='';
+  newRaidMinLevel='';
   await saveRaidConfig();
   renderRaidMgmt();
   renderRaidButtons();
@@ -1313,16 +1336,20 @@ function renderHwData(groupChars, records) {
   records.forEach(r => { if(charRecords[r.character_name] !== undefined) charRecords[r.character_name].push(r); });
 
   // type 기준으로 정규/이벤트 분리 (미설정은 정규로 취급)
-  const mainRaids  = raidConfig.filter(r => (r.type||'regular') === 'regular').slice(0, 3);
+  const mainRaids  = raidConfig.filter(r => (r.type||'regular') === 'regular');
   const eventRaids = raidConfig.filter(r => r.type === 'event');
+  // 캐릭터 템렙이 레이드 최소 템렙 미달이면 노출하지 않음
+  const eligibleRaids = (c, list) => list.filter(r => !r.minLevel || (c.item_level||0) >= r.minLevel);
+  const WEEKLY_CAP = 3; // 정규 레이드는 캐릭터당 3개만 채우면 완료로 취급 (골드 보상 상한 기준)
 
   const cardsHtml = groupChars.map(c => {
     const done = charRecords[c.name] || [];
     // 레이드명 기준으로만 완료 체크 (난이도 무관)
     const doneRaids = new Set(done.map(r => r.raid_name));
+    const charMainRaids = eligibleRaids(c, mainRaids);
 
-    const raidRows = mainRaids.length
-      ? mainRaids.map(raid => {
+    const raidRows = charMainRaids.length
+      ? charMainRaids.map(raid => {
           const isDone = doneRaids.has(raid.name);
           return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);">
             <span style="font-size:.85rem;flex-shrink:0;color:${isDone?'var(--success)':'var(--border)'};">${isDone?'✓':'○'}</span>
@@ -1333,8 +1360,9 @@ function renderHwData(groupChars, records) {
 
     const eventRow = ''; // 이벤트 레이드는 원정대 공용으로 아래 별도 표시
 
-    const doneCount = mainRaids.filter(r => doneRaids.has(r.name)).length;
-    const allDone   = mainRaids.length > 0 && doneCount >= mainRaids.length;
+    const doneCount = charMainRaids.filter(r => doneRaids.has(r.name)).length;
+    const cap       = Math.min(WEEKLY_CAP, charMainRaids.length);
+    const allDone   = cap > 0 && doneCount >= cap;
 
     return `<div style="background:var(--card);border:1px solid ${allDone?'var(--success)':'var(--border)'};border-radius:10px;padding:14px 16px;flex:1;min-width:160px;max-width:230px;">
       <div style="margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border);">
@@ -1344,14 +1372,14 @@ function renderHwData(groupChars, records) {
       ${raidRows}
       ${eventRow}
       <div style="margin-top:8px;font-size:.72rem;color:${allDone?'var(--success)':'var(--muted)'};">
-        ${allDone?'✓ 완료':`${doneCount} / ${mainRaids.length} 완료`}
+        ${allDone?'✓ 완료':`${Math.min(doneCount,cap)} / ${cap} 완료`}
       </div>
     </div>`;
   }).join('');
 
-  // 이벤트 레이드: 원정대 중 누구 한 명이라도 했으면 완료
+  // 이벤트 레이드: 원정대 중 최소 템렙을 충족하는 캐릭터가 있고, 그중 한 명이라도 했으면 완료
   const eventSection = eventRaids.length
-    ? eventRaids.map(er => {
+    ? eventRaids.filter(er => !er.minLevel || groupChars.some(c => (c.item_level||0) >= er.minLevel)).map(er => {
         const isDone = records.some(r => r.raid_name === er.name);
         return `<div style="margin-top:10px;background:var(--card);border:1px solid ${isDone?'var(--success)':'var(--border)'};border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:12px;">
           <span style="font-size:.62rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;">이벤트 · 원정대 공용</span>
